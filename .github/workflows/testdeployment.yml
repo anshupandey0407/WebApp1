@@ -1,0 +1,44 @@
+name: testdeployment
+
+on:
+  workflow_dispatch:
+
+  
+jobs:
+ 
+  get-properties:
+    runs-on: [ AKS ]
+    outputs:
+      matrix: ${{ steps.get-deploy-details.outputs.matrix }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: get prop
+        id: get-deploy-details
+        run: |
+          content=import-csv 'scripts/test-property.csv' | ConvertTo-Json
+          content="${content//'%'/''}"
+          content="${content//$'\n'/''}"
+          content="${content//$'\r'/''}"
+          content="${content//' '/''}"
+          echo $content
+          echo "matrix=$content" >> "$GITHUB_OUTPUT"
+  deploy-prod:
+    needs: get-properties
+    continue-on-error: false
+    strategy:
+      max-parallel: 1
+      matrix: ${{ fromJson(needs.get-properties.outputs.matrix) }}
+    runs-on: [ AKS ]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: prod deployment
+        id: run-deploy-prod
+        run: |
+          echo ${{ matrix.appcode }}
+          echo ${{ matrix.repourl }}
+          echo ${{ matrix.env }}
+          echo ${{ matrix.tag }}
+          echo ${{ matrix.deploy }}
